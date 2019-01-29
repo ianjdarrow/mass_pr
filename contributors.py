@@ -1,6 +1,7 @@
 import asyncio
 import re
 import time
+from collections import defaultdict
 from functools import reduce
 from yaspin import yaspin
 
@@ -13,10 +14,7 @@ def format_contributor_url(org: str, repo: str) -> str:
 
 
 async def get_contributors_by_org_repo(org: str, repo: str):
-  # start = time.process_time_ns()
-  # print(f'Fetching list of all \'{org}/{repo}\' contributors...')
   base_url = format_contributor_url(org, repo)
-
   pages = await get_full_paginated_resource(base_url)
 
   contributors = []
@@ -24,21 +22,21 @@ async def get_contributors_by_org_repo(org: str, repo: str):
     for contributor in result['body']:
       contributors.append(contributor)
 
-  output = list(map(lambda x: x['login'], contributors))
-  # elapsed = time.process_time_ns() - start
-  # print(f'Got {org}/{repo}, ({len(output)} requests) in {format_s(elapsed)}')
+  output = list(map(lambda x: {
+                'login': x['login'], 'contributions': x['contributions']}, contributors))
   return output
 
 
 async def get_lots_of_contributors(org: str, repos: [str]):
-  results = set([])
+  results = defaultdict(int)
   with yaspin(text=f"Fetching all {org} contributors..") as spinner:
     tasks = [get_contributors_by_org_repo(org, repo) for repo in repos]
     pieces = chunk(tasks, 20)
     for piece in pieces:
-      contributors = await asyncio.gather(*piece)
-      for repo in contributors:
-        results.update(repo)
+      repos = await asyncio.gather(*piece)
+      flat_repos = reduce(lambda x, y: x+y, repos)
+      for contributor in flat_repos:
+        results[contributor['login']] += contributor['contributions']
       await asyncio.sleep(1)
     spinner.ok('✅ ')
 

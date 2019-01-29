@@ -15,5 +15,6 @@ if __name__ == "__main__":
       repos.get_repo_names_by_org(args['org']))
   contributors = loop.run_until_complete(
       contributors.get_lots_of_contributors(args['org'], repos))
-  print(sorted(contributors))
+  for name, contributions in sorted(contributors.items(), key=lambda t: t[1], reverse=True):
+    print(f'[ ] @{name} ({contributions})')
   print(f'Got {len(contributors)} contributors!')
