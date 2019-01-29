@@ -31,7 +31,9 @@ async def get_full_paginated_resource(base_url: str):
   response = await fetch(base_url)
 
   headers = response['headers']
-  print(f'Rate limit remaining: {headers["X-RateLimit-Remaining"]}/5000')
+  remaining = headers["X-RateLimit-Remaining"]
+  limit = headers["X-RateLimit-Limit"]
+  print(f'Rate limit remaining: {remaining}/{limit}')
   page_count = get_page_count_from_headers(headers)
 
   results = [response]
