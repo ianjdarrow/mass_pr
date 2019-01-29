@@ -2,6 +2,7 @@ import asyncio
 import re
 import time
 from functools import reduce
+from yaspin import yaspin
 
 from github_requests import get_full_paginated_resource
 from utils import chunk, format_s
@@ -30,15 +31,15 @@ async def get_contributors_by_org_repo(org: str, repo: str):
 
 
 async def get_lots_of_contributors(org: str, repos: [str]):
-  print(f"Fetching a whole load of {org} contributors")
   results = set([])
-  tasks = [get_contributors_by_org_repo(org, repo) for repo in repos]
-  pieces = chunk(tasks, 20)
-  for piece in pieces:
-    print('...')
-    contributors = await asyncio.gather(*piece)
-    for repo in contributors:
-      results.update(repo)
-    await asyncio.sleep(1)
+  with yaspin(text=f"Fetching all {org} contributors..") as spinner:
+    tasks = [get_contributors_by_org_repo(org, repo) for repo in repos]
+    pieces = chunk(tasks, 20)
+    for piece in pieces:
+      contributors = await asyncio.gather(*piece)
+      for repo in contributors:
+        results.update(repo)
+      await asyncio.sleep(1)
+    spinner.ok('✅ ')
 
   return results

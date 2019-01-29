@@ -11,6 +11,7 @@ autopep8 = "*"
 python-dotenv = "*"
 aiohttp = "*"
 aiodns = "*"
+yaspin = "*"
 
 [requires]
 python_version = "3.7"

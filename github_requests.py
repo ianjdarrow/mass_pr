@@ -17,9 +17,13 @@ async def fetch(url: str):
       body = None
       try:
         body = await response.json()
-      except:
-        print(response)
+      # github returns 204s with weird encodings for empty repos
+      except aiohttp.client_exceptions.ContentTypeError:
         body = ''
+      except Exception as e:
+        print(f'Got a surprising exception fetching {url}')
+        print(e)
+        raise
       return {
           "headers": response.headers,
           "status": response.status,
@@ -33,7 +37,9 @@ async def get_full_paginated_resource(base_url: str):
   headers = response['headers']
   remaining = headers["X-RateLimit-Remaining"]
   limit = headers["X-RateLimit-Limit"]
-  print(f'Rate limit remaining: {remaining}/{limit}')
+  if float(remaining) / float(limit) < 0.3:
+    print(f'Rate limit remaining: {remaining}/{limit}')
+
   page_count = get_page_count_from_headers(headers)
 
   results = [response]
