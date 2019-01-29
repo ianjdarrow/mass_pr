@@ -1,13 +1,17 @@
 import asyncio
 from dotenv import load_dotenv, find_dotenv
+
 import github_requests
+import contributors
+import repos
+
 
 if __name__ == "__main__":
   load_dotenv(find_dotenv())
   loop = asyncio.get_event_loop()
-
-  repo_future = asyncio.ensure_future(
-      github_requests.get_repo_names_by_org('ipfs'))
-  repos = loop.run_until_complete(repo_future)
-  for repo in repos:
-    print(repo)
+  repos = loop.run_until_complete(
+      repos.get_repo_names_by_org('ipfs'))
+  contributors = loop.run_until_complete(
+      contributors.get_lots_of_contributors('ipfs', repos))
+  print(sorted(contributors))
+  print(f'Got {len(contributors)} contributors!')

@@ -1,55 +1,61 @@
 from base64 import b64encode
-from collections.abc import MutableMapping
+import aiohttp
 import asyncio
-import re
-import requests
 import os
+import re
 
 
-def get_authenticated_client() -> requests.Session:
-  c = requests.Session()
-  c.headers.update({'Authorization': get_auth_header(),
-                    'Accept': 'application/vnd.github.inertia-preview+json',
-                    'User-Agent': 'ianjdarrow'})
-  return c
+def get_authenticated_client() -> aiohttp.ClientSession:
+  headers = {'Authorization': create_auth_header(
+  ), 'Accept': 'application/vnd.github.inertia-preview+json', 'User-Agent': os.getenv("GITHUB_USER")}
+  return aiohttp.ClientSession(headers=headers)
 
 
-async def get_repo_names_by_org(org: str):
-  c = get_authenticated_client()
-  base_url = f'https://api.github.com/orgs/{org}/repos'
+async def fetch(url: str):
+  async with get_authenticated_client() as c:
+    async with c.get(url) as response:
+      body = None
+      try:
+        body = await response.json()
+      except:
+        print(response)
+        body = ''
+      return {
+          "headers": response.headers,
+          "status": response.status,
+          "body": body
+      }
 
-  repos = []
 
-  resp = c.get(base_url)
-  headers = resp.headers
+async def get_full_paginated_resource(base_url: str):
+  response = await fetch(base_url)
+
+  headers = response['headers']
   print(f'Rate limit remaining: {headers["X-RateLimit-Remaining"]}/5000')
-
-  for repo in resp.json():
-    repos.append(repo)
-
   page_count = get_page_count_from_headers(headers)
 
-  tasks = []
-  for page in range(1, page_count+1):
-    url = f'{base_url}?page={page}'
-    task = asyncio.ensure_future(fetch(c, url))
-    tasks.append(task)
+  results = [response]
 
-  results = await asyncio.gather(*tasks)
-  for result in results:
-    for repo in result.json():
-      repos.append(repo)
+  if page_count == 1:
+    return results
 
-  return sorted(list(map(lambda x: x['name'], repos)))
+  page_range = range(2, page_count+1)
+  tasks = [fetch(f'{base_url}?page={page}') for page in page_range]
 
+  all_responses = await asyncio.gather(*tasks)
+  results += all_responses
 
-async def fetch(client, url):
-  print(f'GET {url}')
-  resp = client.get(url)
-  return resp
+  return results
 
 
-def get_page_count_from_headers(header: MutableMapping) -> int:
+def create_auth_header() -> str:
+  username = os.getenv('GITHUB_USER')
+  token = os.getenv("GITHUB_TOKEN")
+  encoded = b64encode(f'{username}:{token}'.encode('utf-8')).decode('utf-8')
+  return f'Basic {encoded}'
+
+
+def get_page_count_from_headers(header) -> int:
   if not 'Link' in header:
     return 1
   [_, last_link] = header['Link'].split(', ')
@@ -57,11 +63,3 @@ def get_page_count_from_headers(header: MutableMapping) -> int:
   if m:
     return int(m.group(1))
   raise Exception("Error traversing pagination")
-
-
-def get_auth_header() -> str:
-  # todo: replace with dotenv
-  username = os.getenv('GITHUB_USER')
-  token = os.getenv("GITHUB_TOKEN")
-  encoded = b64encode(f'{username}:{token}'.encode('utf-8')).decode('utf-8')
-  return f'Basic {encoded}'

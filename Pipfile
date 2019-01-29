@@ -8,8 +8,9 @@ pylint = "*"
 autopep8 = "*"
 
 [packages]
-requests = "*"
 python-dotenv = "*"
+aiohttp = "*"
+aiodns = "*"
 
 [requires]
 python_version = "3.7"
