@@ -31,6 +31,26 @@ async def fetch(url: str):
       }
 
 
+async def post(url: str, payload: dict):
+  async with get_authenticated_client() as c:
+    async with c.post(url, json=payload) as response:
+      body = None
+      try:
+        body = await response.json()
+      # github returns 204s with weird encodings for empty repos
+      except aiohttp.client_exceptions.ContentTypeError:
+        body = ''
+      except Exception as e:
+        print(f'Got a surprising exception fetching {url}')
+        print(e)
+        raise
+      return {
+          "headers": response.headers,
+          "status": response.status,
+          "body": body
+      }
+
+
 async def get_full_paginated_resource(base_url: str):
   response = await fetch(base_url)
 
